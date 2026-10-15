@@ -85,3 +85,7 @@ bash Scripts/test.sh
 Input Method Locked is a native macOS menu-bar utility that keeps a chosen input source active. Set a global source, assign a different source to each app, or let selected apps switch freely. Rules are stored locally, and launch at login uses macOS Login Items.
 
 [Download the Universal DMG](https://github.com/syczk301/Input-Method-Locked/releases/download/v0.4.1/Input-Method-Locked-0.4.1-universal.dmg), open it, and drag the app to Applications. Requires macOS 13+. The build is ad-hoc signed and not notarized; macOS may require approval in Privacy & Security on first launch. Intel support is cross-compiled; hardware validation was performed on Apple silicon.
+
+## 许可证
+
+本项目采用 [MIT 许可证](LICENSE)。Copyright © 2026 syczk301.
