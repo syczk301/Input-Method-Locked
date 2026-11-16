@@ -4,32 +4,34 @@ cd "$(dirname "$0")/.."
 if [[ "${1:-}" != "--skip-build" ]]; then
   bash build.sh
 fi
-APP="build/Input Method Locked.app"
+APP="build/输入与滚动.app"
 codesign --verify --strict "$APP"
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")
-DMG="build/Input-Method-Locked-$VERSION-universal.dmg"
+DMG="build/Input-and-Scroll-$VERSION-universal.dmg"
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/input-method-locked-dmg.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
-ditto "$APP" "$STAGE/Input Method Locked.app"
+ditto "$APP" "$STAGE/$(basename "$APP")"
 ln -s /Applications "$STAGE/Applications"
 cat > "$STAGE/Read Me.txt" <<'TEXT'
-Input Method Locked
+输入与滚动 · Input & Scroll
 
-1. Drag Input Method Locked.app to Applications.
+1. Drag 输入与滚动.app to Applications.
 2. Open the app from Applications. It appears in the menu bar.
 3. Choose a global input method, or set an input method for each app.
-4. Enable launch at login from the Settings submenu if desired.
+4. In Scroll Direction, configure mouse and trackpad direction and mouse smoothing.
+5. Enable launch at login from the Settings submenu if desired.
 
 macOS 13+. Universal: Apple silicon and Intel.
 This build is ad-hoc signed and not notarized by Apple. On first launch,
 macOS may require you to allow it in System Settings > Privacy & Security.
 
 将应用拖入 Applications 后打开，在菜单栏中选择全局输入法，
-或为不同 App 设置独立输入法。开机自动启动位于“设置”子菜单。
+或为不同 App 设置独立输入法。“滚动方向”子菜单可设置方向和平滑滚动。
+开机自动启动位于“设置”子菜单。
 
 https://github.com/syczk301/Input-Method-Locked
 TEXT
-hdiutil create -volname "Input Method Locked" -srcfolder "$STAGE" -format UDZO \
+hdiutil create -volname "输入与滚动" -srcfolder "$STAGE" -format UDZO \
   -imagekey zlib-level=9 -fs HFS+ -ov "$DMG"
 hdiutil verify "$DMG"
 /usr/bin/python3 Scripts/verify-dmg.py "$DMG" "$APP"

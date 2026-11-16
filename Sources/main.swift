@@ -16,13 +16,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var item: NSStatusItem!
     private let menu = NSMenu()
     private let controller: LockController
+    private let scrolling: ScrollSettings
 
-    init(controller: LockController) {
+    init(controller: LockController, scrolling: ScrollSettings) {
         self.controller = controller
+        self.scrolling = scrolling
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppUpdater.shared.start()
         if !CommandLine.arguments.contains("--smoke-test"), let id = Bundle.main.bundleIdentifier,
            NSRunningApplication.runningApplications(withBundleIdentifier: id).count > 1 {
             NSApp.terminate(nil)
@@ -33,25 +36,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         item.menu = menu
         controller.onChange = { [weak self] in self?.refreshIcon() }
+        scrolling.onStatusChange = { [weak self] in self?.refreshIcon() }
         controller.start()
+        if !CommandLine.arguments.contains("--smoke-test") { scrolling.start() }
         refreshIcon()
         if CommandLine.arguments.contains("--smoke-test") {
             rebuildMenu()
             print("GUI_STARTED: statusItem=\(item.button != nil) enabled=\(controller.enabled)")
-            let rows = menu.items.filter { !$0.isSeparatorItem && $0.view == nil }.count
-            print("COMPACT_MENU: rows=\(rows) headerHeight=\(menu.items.first?.view?.frame.height ?? 0)")
+            print("MENU_SECTIONS: \(menu.items.filter { $0.view != nil }.count)")
             dumpMenu(menu)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { NSApp.terminate(nil) }
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) { controller.stop() }
+    func applicationWillTerminate(_ notification: Notification) {
+        scrolling.stop()
+        controller.stop()
+    }
 
     private func refreshIcon() {
-        item.button?.image = Branding.statusIcon(pinned: controller.effectiveLock)
+        item.button?.image = Branding.statusIcon(locked: controller.effectiveLock, scrolling: scrolling.isRunning)
         item.button?.title = ""
-        item.button?.toolTip = "Input Method Locked · \(controller.statusLabel)"
-        item.button?.setAccessibilityLabel(item.button?.toolTip ?? "Input Method Locked")
+        item.button?.toolTip = "输入与滚动 · \(controller.statusLabel) · \(scrolling.statusLabel)"
+        item.button?.setAccessibilityLabel(item.button?.toolTip ?? "输入与滚动")
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -76,20 +83,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func rebuildMenu() {
         menu.removeAllItems()
-        menu.minimumWidth = 300
+        menu.minimumWidth = Branding.menuWidth
         let sources = InputSources.all()
         let displayTargetID = controller.effectiveTargetID ?? controller.targetID
         let target = controller.currentAppIsExcluded ? "自由切换输入法" :
             (sources.first(where: { $0.id == displayTargetID })?.name ?? "未启用的输入法")
         let app = controller.frontmostApp
-        let header = add("Input Method Locked · \(controller.statusLabel)")
-        header.view = headerView(target: target, appName: app?.name ?? "未知应用")
+        let inputStatus = controller.effectiveLock ? "\(controller.statusLabel) · \(target)" : controller.statusLabel
+        menu.addItem(Branding.sectionHeader("输入法锁定", detail: inputStatus, symbol: "keyboard", tint: .systemBlue))
+        if let message = controller.message { add(message).isEnabled = false }
         let global = add("全局锁定", action: #selector(toggle))
         global.state = controller.enabled ? .on : .off
-        global.image = NSImage(systemSymbolName: "pin", accessibilityDescription: nil)
+        global.image = Branding.menuSymbol("lock")
         global.toolTip = "开启输入法锁定：普通 App 使用全局输入法，例外 App 使用各自的设置。"
         let globalTarget = sources.first(where: { $0.id == controller.targetID })?.name ?? "未选择"
         let inputPicker = add("全局输入法：\(globalTarget)")
+        inputPicker.image = Branding.menuSymbol("character.cursor.ibeam")
         let inputMenu = NSMenu(title: "全局输入法")
         inputPicker.submenu = inputMenu
         for source in sources {
@@ -102,13 +111,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let summary = rule.map { $0.targetID.map { id in
                 sources.first(where: { $0.id == id })?.name ?? "已停用的输入法"
             } ?? "不锁定" } ?? "跟随全局"
-            let quick = add("当前 App：\(summary)")
+            let quick = add("\(app.name)：\(summary)")
+            quick.image = Branding.menuSymbol("macwindow")
             quick.submenu = ruleMenu(for: app, sources: sources)
-            quick.toolTip = "为 \(app.name) 选择独立输入法、不锁定，或跟随全局。"
+            quick.toolTip = "当前输入法规则：\(target)。可选择独立输入法、不锁定，或跟随全局。"
         } else {
             add("无法识别当前 App").isEnabled = false
         }
         let exceptions = add("应用规则（\(controller.appRules.count)）")
+        exceptions.image = Branding.menuSymbol("list.bullet.rectangle")
         let submenu = NSMenu(title: "应用例外")
         exceptions.submenu = submenu
         if controller.appRules.isEmpty {
@@ -126,8 +137,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         submenu.addItem(.separator())
         add("添加 App…", action: #selector(addApps), to: submenu)
         menu.addItem(.separator())
+        menu.addItem(Branding.sectionHeader("鼠标与触控板", detail: scrolling.menuSummary,
+                                           symbol: "computermouse", tint: .systemTeal))
+        scrolling.addItems(to: menu)
+        menu.addItem(.separator())
         let settings = NSMenu(title: "设置")
-        add("设置").submenu = settings
+        let settingsItem = add("设置")
+        settingsItem.image = Branding.menuSymbol("gearshape")
+        settingsItem.submenu = settings
         let launchAtLogin = add("开机自动启动", action: #selector(toggleLaunchAtLogin), to: settings)
         switch SMAppService.mainApp.status {
         case .enabled:
@@ -141,8 +158,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         add("打开键盘设置…", action: #selector(keyboardSettings), to: settings)
         settings.addItem(.separator())
-        add("关于 Input Method Locked…", action: #selector(about), to: settings)
-        add("退出", action: #selector(quit), key: "q")
+        MainActor.assumeIsolated { settings.addItem(AppUpdater.shared.menuItem()) }
+        add("关于输入与滚动…", action: #selector(about), to: settings)
+        add("退出", action: #selector(quit), key: "q").image = Branding.menuSymbol("power")
     }
 
     private func ruleMenu(for app: AppIdentity, sources: [InputSource]) -> NSMenu {
@@ -170,24 +188,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             submenu.addItem(missing)
         }
         return submenu
-    }
-
-    private func headerView(target: String, appName: String) -> NSView {
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 58))
-        func label(_ text: String, y: CGFloat, size: CGFloat, weight: NSFont.Weight, color: NSColor) {
-            let field = NSTextField(labelWithString: text)
-            field.frame = NSRect(x: 16, y: y, width: 268, height: 20)
-            field.font = .systemFont(ofSize: size, weight: weight)
-            field.textColor = color
-            field.lineBreakMode = .byTruncatingTail
-            field.toolTip = text
-            view.addSubview(field)
-        }
-        let color: NSColor = controller.message != nil ? .systemOrange : controller.effectiveLock ? .systemGreen :
-            (controller.enabled ? .systemOrange : .secondaryLabelColor)
-        label(controller.message ?? controller.statusLabel, y: 32, size: 13, weight: .semibold, color: color)
-        label("\(target)  ·  \(appName)", y: 9, size: 11, weight: .regular, color: .secondaryLabelColor)
-        return view
     }
 
     @objc private func selectAppRule(_ sender: NSMenuItem) {
@@ -268,8 +268,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func about() {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Input Method Locked \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.4.1")"
-        alert.informativeText = "Input Method Locked 是一款轻量的 macOS 菜单栏工具，用于固定常用输入法。\n\n设置全局输入法，也可为不同 App 单独指定输入法或设为不锁定。切换 App 时自动应用对应规则。\n\n输入法和应用规则会自动保存，支持开机自动启动。"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        alert.messageText = "输入与滚动 \(version)"
+        alert.informativeText = "设置全局输入法或为不同 App 单独指定输入法。也可分别设置鼠标和触控板的滚动方向，并开启鼠标平滑滚动。设置会自动保存。"
         alert.addButton(withTitle: "好")
         alert.runModal()
     }
@@ -328,8 +329,9 @@ if CommandLine.arguments.contains("--diagnose") {
 } else {
     let app = NSApplication.shared
     // A brief menu smoke test stays paused in memory, without reading or writing user preferences.
-    let delegate = AppDelegate(controller: LockController(
-        defaults: CommandLine.arguments.contains("--smoke-test") ? nil : .standard))
+    let defaults: UserDefaults? = CommandLine.arguments.contains("--smoke-test") ? nil : .standard
+    let delegate = AppDelegate(controller: LockController(defaults: defaults),
+                               scrolling: ScrollSettings(defaults: defaults))
     app.delegate = delegate
     app.run()
 }

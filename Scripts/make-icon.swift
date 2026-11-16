@@ -19,60 +19,31 @@ func artwork() {
                ending: NSColor(srgbRed: 0.10, green: 0.57, blue: 0.64, alpha: 1))!.draw(in: tile, angle: 65)
     NSGraphicsContext.restoreGraphicsState()
 
-    NSGraphicsContext.saveGraphicsState()
-    let keyboardShadow = NSShadow()
-    keyboardShadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.25)
-    keyboardShadow.shadowBlurRadius = 22
-    keyboardShadow.shadowOffset = NSSize(width: 0, height: -14)
-    keyboardShadow.set()
-    rounded(NSRect(x: 220, y: 324, width: 584, height: 372), 56,
-            NSColor(srgbRed: 0.86, green: 0.93, blue: 0.95, alpha: 1))
-    NSGraphicsContext.restoreGraphicsState()
-    rounded(NSRect(x: 220, y: 338, width: 584, height: 358), 56,
-            NSColor(srgbRed: 0.96, green: 0.99, blue: 1, alpha: 1))
+    let casing = NSColor(srgbRed: 0.96, green: 0.99, blue: 1, alpha: 1)
+    let detail = NSColor(srgbRed: 0.12, green: 0.36, blue: 0.44, alpha: 1)
+    let wheel = NSColor(srgbRed: 0.12, green: 0.71, blue: 0.69, alpha: 1)
 
-    let keyColor = NSColor(srgbRed: 0.20, green: 0.42, blue: 0.52, alpha: 1)
-    for y: CGFloat in [590, 508] {
-        for column in 0..<6 {
-            rounded(NSRect(x: 262 + CGFloat(column) * 82, y: y, width: 64, height: 58), 12, keyColor)
+    NSGraphicsContext.saveGraphicsState()
+    let deviceShadow = NSShadow()
+    deviceShadow.shadowColor = NSColor(calibratedWhite: 0.06, alpha: 0.28)
+    deviceShadow.shadowBlurRadius = 20
+    deviceShadow.shadowOffset = NSSize(width: 0, height: -12)
+    deviceShadow.set()
+    rounded(NSRect(x: 198, y: 370, width: 432, height: 284), 52, casing)
+    rounded(NSRect(x: 680, y: 332, width: 146, height: 360), 73, casing)
+    NSGraphicsContext.restoreGraphicsState()
+
+    for y: CGFloat in [556, 480] {
+        for column in 0..<5 {
+            rounded(NSRect(x: 236 + CGFloat(column) * 74, y: y, width: 60, height: 57), 12, detail)
         }
     }
-    rounded(NSRect(x: 262, y: 402, width: 94, height: 66), 13, keyColor)
-    rounded(NSRect(x: 376, y: 402, width: 238, height: 66), 13, keyColor)
-    rounded(NSRect(x: 634, y: 402, width: 102, height: 66), 13, keyColor)
+    rounded(NSRect(x: 236, y: 406, width: 60, height: 55), 12, detail)
+    rounded(NSRect(x: 310, y: 406, width: 208, height: 55), 12, detail)
+    rounded(NSRect(x: 532, y: 406, width: 60, height: 55), 12, detail)
 
-    NSGraphicsContext.saveGraphicsState()
-    let badgeShadow = NSShadow()
-    badgeShadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.24)
-    badgeShadow.shadowBlurRadius = 18
-    badgeShadow.shadowOffset = NSSize(width: 0, height: -8)
-    badgeShadow.set()
-    NSColor(srgbRed: 1, green: 0.66, blue: 0.32, alpha: 1).setFill()
-    let badge = NSBezierPath(ovalIn: NSRect(x: 636, y: 228, width: 244, height: 244))
-    badge.fill()
-    NSGraphicsContext.restoreGraphicsState()
-    NSColor(srgbRed: 1, green: 0.87, blue: 0.70, alpha: 1).setStroke()
-    let rim = NSBezierPath(ovalIn: NSRect(x: 641, y: 233, width: 234, height: 234))
-    rim.lineWidth = 8
-    rim.stroke()
-
-    NSGraphicsContext.saveGraphicsState()
-    let transform = NSAffineTransform()
-    transform.translateX(by: 758, yBy: 358)
-    transform.rotate(byDegrees: -32)
-    transform.concat()
-    let white = NSColor.white
-    rounded(NSRect(x: -24, y: -12, width: 48, height: 70), 8, white)
-    rounded(NSRect(x: -52, y: 48, width: 104, height: 30), 13, white)
-    rounded(NSRect(x: -53, y: -28, width: 106, height: 28), 11, white)
-    let needle = NSBezierPath()
-    needle.move(to: NSPoint(x: -9, y: -24))
-    needle.line(to: NSPoint(x: 0, y: -92))
-    needle.line(to: NSPoint(x: 9, y: -24))
-    needle.close()
-    white.setFill()
-    needle.fill()
-    NSGraphicsContext.restoreGraphicsState()
+    rounded(NSRect(x: 727, y: 535, width: 52, height: 112), 26, detail)
+    rounded(NSRect(x: 740, y: 558, width: 26, height: 66), 13, wheel)
 }
 
 func render(_ pixels: Int, to url: URL) throws {

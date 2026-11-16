@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix="input-method-locked-verify-") as temp:
     subprocess.run(["hdiutil", "attach", "-readonly", "-nobrowse", "-noautoopen",
                     "-mountpoint", str(mount), str(dmg)], check=True)
     try:
-        app = mount / "Input Method Locked.app"
+        app = mount / original.name
         assert files(app) == files(original), "Packaged app differs from build"
         assert os.readlink(mount / "Applications") == "/Applications"
         assert (mount / "Read Me.txt").is_file()

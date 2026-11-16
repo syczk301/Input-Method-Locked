@@ -1,0 +1,9 @@
+{
+  "app": "InputMethodLocked",
+  "account": "syczk301.InputMethodLocked",
+  "publicKey": "QqtRFpFgGW5Z/VnHB//GS74J6KOAUuAujfOmqMrmmfI=",
+  "feedURL": "https://github.com/syczk301/Input-Method-Locked/releases/download/sparkle/appcast.xml",
+  "downloadURLPrefix": "https://github.com/syczk301/Input-Method-Locked/releases/download/sparkle/",
+  "version": "0.6.0",
+  "bundle": "build/\u8f93\u5165\u4e0e\u6eda\u52a8.app"
+}

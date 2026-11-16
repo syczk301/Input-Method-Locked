@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")"
-APP="build/Input Method Locked.app"
+python3 tools/sparkle/bootstrap.py
+APP="${1:-build/输入与滚动.app}"
 BUILD_CACHE="${IML_MODULE_CACHE:-${TMPDIR:-/tmp}/input-method-locked-module-cache}"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" build/bin "$BUILD_CACHE"
 xcrun swift -module-cache-path "$BUILD_CACHE" Scripts/make-icon.swift build/AppIcon.iconset Resources
@@ -9,9 +10,13 @@ xcrun swift -module-cache-path "$BUILD_CACHE" Scripts/make-icon.swift build/AppI
 ARCHS="${IML_ARCHS:-arm64 x86_64}"
 BINARIES=()
 for ARCH in $ARCHS; do
+  xcrun clang -fobjc-arc -O2 -arch "$ARCH" -mmacosx-version-min=13.0 \
+    -c Sources/ScrollEngine/ScrollTap.m -o "build/bin/ScrollTap-$ARCH.o"
   xcrun swiftc -swift-version 5 -O -target "$ARCH-apple-macosx13.0" \
     -module-cache-path "$BUILD_CACHE" \
-    -framework AppKit -framework Carbon -framework ServiceManagement Sources/*.swift \
+    -import-objc-header Sources/ScrollEngine/ScrollTap.h \
+    -F tools/sparkle/vendor -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks -framework AppKit -framework Carbon -framework ServiceManagement \
+    -framework IOKit -framework ApplicationServices Sources/*.swift "build/bin/ScrollTap-$ARCH.o" \
     -o "build/bin/InputMethodLocked-$ARCH"
   BINARIES+=("build/bin/InputMethodLocked-$ARCH")
 done
@@ -22,17 +27,18 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>InputMethodLocked</string>
 <key>CFBundleIdentifier</key><string>local.czk.inputlocker.prototype</string>
-<key>CFBundleName</key><string>Input Method Locked</string>
-<key>CFBundleDisplayName</key><string>Input Method Locked</string>
+<key>CFBundleName</key><string>输入与滚动</string>
+<key>CFBundleDisplayName</key><string>输入与滚动</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.1</string>
-<key>CFBundleVersion</key><string>6</string>
+<key>CFBundleShortVersionString</key><string>0.6.0</string>
+<key>CFBundleVersion</key><string>16</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+python3 tools/sparkle/bootstrap.py "$APP"
 codesign --force --sign - "$APP"
 codesign --verify --strict "$APP"
 echo "Built: $PWD/$APP"
